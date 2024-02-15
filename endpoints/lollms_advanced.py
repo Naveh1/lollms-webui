@@ -70,6 +70,31 @@ def show_yes_no_dialog(title, text):
 
     return result
 
+
+def validate_local_only_feature(feature_name : str, is_enabled_in_config : bool = True) -> str:
+    """
+    Validates sensitive features.
+
+    :param feature_name: The name of the feature.
+    :param is_enabled_in_config: The configuration resposnable for this feature, default - True.
+
+    :return: Rejection reason, None if it get's validated.
+    """
+    if lollmsElfServer.config.headless_server_mode:
+        return "This feature is blocked when in headless mode!"
+
+    if lollmsElfServer.config.host=="0.0.0.0":
+        return "This feature is blocked when the server is exposed outside!"
+
+    if not is_enabled_in_config:
+        return "This feature is blocked by the configuration!"
+
+    if is_enabled_in_config:
+        if not show_yes_no_dialog("Validation",f"Do you validate the {feature_name}?"):
+            return "User refused!"
+    
+    return None
+
 class CodeRequest(BaseModel):
     code: str = Field(..., description="Code to be executed")
     discussion_id: int = Field(..., description="Discussion ID")
@@ -85,18 +110,9 @@ async def execute_code(request: CodeRequest):
     :return: A JSON response with the status of the operation.
     """
 
-    if lollmsElfServer.config.headless_server_mode:
-        return {"status":False,"error":"Code execution is blocked when in headless mode for obvious security reasons!"}
-
-    if lollmsElfServer.config.host=="0.0.0.0":
-        return {"status":False,"error":"Code execution is blocked when the server is exposed outside for very obvious reasons!"}
-
-    if not lollmsElfServer.config.turn_on_code_execution:
-        return {"status":False,"error":"Code execution is blocked by the configuration!"}
-
-    if lollmsElfServer.config.turn_on_code_validation:
-        if not show_yes_no_dialog("Validation","Do you validate the execution of the code?"):
-            return {"status":False,"error":"User refused the execution!"}
+    rejection_reason = validate_local_only_feature("Execution of code", lollmsElfServer.config.turn_on_code_execution)
+    if rejection_reason:
+        return {"status":False,"error": rejection_reason}
 
     try:
         code = request.code
@@ -155,7 +171,9 @@ async def open_code_folder_in_vs_code(request: OpenCodeFolderInVsCodeRequestMode
     :param request: The HTTP request object.
     :return: A JSON response with the status of the operation.
     """
-
+    rejection_reason = validate_local_only_feature("Open of code folder in vs code")
+    if rejection_reason:
+        return {"status":False,"error": rejection_reason}
     try:
         if request.discussion_id:        
             ASCIIColors.info("Opening folder:")
@@ -192,7 +210,9 @@ async def open_file(file_path: FilePath):
     :param file_path: The file path object.
     :return: A JSON response with the status of the operation.
     """
-
+    rejection_reason = validate_local_only_feature("Open of file")
+    if rejection_reason:
+        return {"status":False,"error": rejection_reason}
     try:
         # Validate the 'path' parameter
         path = file_path.path
@@ -225,7 +245,9 @@ async def open_code_in_vs_code(vs_code_data: VSCodeData):
     :param vs_code_data: The data object.
     :return: A JSON response with the status of the operation.
     """
-
+    rejection_reason = validate_local_only_feature("Open of code in vs code")
+    if rejection_reason:
+        return {"status":False,"error": rejection_reason}
     try:
         discussion_id = vs_code_data.discussion_id
         message_id = vs_code_data.message_id
@@ -260,7 +282,9 @@ async def open_code_folder(request: FolderRequest):
     :param request: The HTTP request object.
     :return: A JSON response with the status of the operation.
     """
-    
+    rejection_reason = validate_local_only_feature("Open of code folder")
+    if rejection_reason:
+        return {"status":False,"error": rejection_reason}
     try:
         if request.discussion_id:
             discussion_id = request.discussion_id
