@@ -663,7 +663,7 @@ class Discussion:
             new_title (str): The nex discussion name
         """
         rows = self.discussions_db.select(
-            f"Select title from discussion WHERE id={self.discussion_id}"
+            f"Select title from discussion WHERE id=?", (self.discussion_id,)
         )
         return rows[0][0]
 
@@ -671,10 +671,10 @@ class Discussion:
         """Deletes the discussion
         """
         self.discussions_db.delete(
-            f"DELETE FROM message WHERE discussion_id={self.discussion_id}"
+            f"DELETE FROM message WHERE discussion_id=?", (self.discussion_id,)
         )
         self.discussions_db.delete(
-            f"DELETE FROM discussion WHERE id={self.discussion_id}"
+            f"DELETE FROM discussion WHERE id=?", (self.discussion_id,)
         )
 
     def get_messages(self):
